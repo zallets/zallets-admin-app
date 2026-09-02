@@ -10,6 +10,15 @@
 `website/api/*`(특히 `website/api/admin.js`)가 처리합니다. 백엔드 스키마는
 `website/README.md` "3. Postgres 연동" 참고.
 
+## 휴대폰에서 앱처럼 쓰기 (PWA)
+
+`public/manifest.json` + `public/sw.js`로 최소 PWA 설치 조건을 갖췄습니다
+(손님용 `app/`과 동일한 패턴 — 오프라인 캐싱은 안 하고 항상 네트워크로
+통과시킵니다, 관리자 데이터는 항상 최신이어야 하므로). 배포된 URL을
+휴대폰 브라우저로 열고 "홈 화면에 추가"(iOS: 공유 → 홈 화면에 추가 /
+Android Chrome: 메뉴 → 앱 설치)를 하면 홈 화면 아이콘으로 실행되는
+독립 앱처럼 동작합니다.
+
 ## 인증
 
 회원 로그인 시스템은 없습니다. 공유 비밀번호(`ADMIN_SECRET`, `website/.env`에
