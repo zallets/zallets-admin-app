@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Trash2, Plus, X, Upload } from 'lucide-react';
-import { AdminPartner, listPartners, upsertPartner, deletePartner, uploadImage, AdminApiError } from '../lib/adminApi';
+import {
+  AdminPartner,
+  AdminFacilitySchedule,
+  EMPTY_SCHEDULE,
+  listPartners,
+  upsertPartner,
+  deletePartner,
+  uploadImage,
+  AdminApiError,
+} from '../lib/adminApi';
 
 const EMPTY: Partial<AdminPartner> = {
   category: '',
@@ -11,7 +20,144 @@ const EMPTY: Partial<AdminPartner> = {
   website: '',
   tags: [],
   photos: [],
+  schedule: EMPTY_SCHEDULE,
 };
+
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function ScheduleEditor({
+  schedule,
+  onChange,
+}: {
+  schedule: AdminFacilitySchedule;
+  onChange: (schedule: AdminFacilitySchedule) => void;
+}) {
+  const [timeInputs, setTimeInputs] = useState<Record<number, string>>({});
+  const [dateInput, setDateInput] = useState('');
+
+  const toggleWeekday = (w: number) => {
+    const openWeekdays = schedule.openWeekdays.includes(w)
+      ? schedule.openWeekdays.filter((d) => d !== w)
+      : [...schedule.openWeekdays, w];
+    onChange({ ...schedule, openWeekdays });
+  };
+
+  const addTime = (w: number) => {
+    const value = (timeInputs[w] || '').trim();
+    if (!value) return;
+    const existing = schedule.weekdayTimes[String(w)] || [];
+    if (existing.includes(value)) return;
+    onChange({ ...schedule, weekdayTimes: { ...schedule.weekdayTimes, [String(w)]: [...existing, value] } });
+    setTimeInputs((prev) => ({ ...prev, [w]: '' }));
+  };
+
+  const removeTime = (w: number, time: string) => {
+    const existing = schedule.weekdayTimes[String(w)] || [];
+    onChange({ ...schedule, weekdayTimes: { ...schedule.weekdayTimes, [String(w)]: existing.filter((t) => t !== time) } });
+  };
+
+  const addClosedDate = () => {
+    if (!dateInput || schedule.closedDates.includes(dateInput)) return;
+    onChange({ ...schedule, closedDates: [...schedule.closedDates, dateInput].sort() });
+    setDateInput('');
+  };
+
+  const removeClosedDate = (date: string) => {
+    onChange({ ...schedule, closedDates: schedule.closedDates.filter((d) => d !== date) });
+  };
+
+  return (
+    <div className="space-y-3 border-t border-stone-200 pt-3">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-stone-600">요일별 운영 여부 / 수업 시간</p>
+        <p className="text-[11px] text-stone-400">운영 요일을 아무것도 선택하지 않으면 매일 영업으로 취급합니다.</p>
+        {WEEKDAYS.map((label, w) => {
+          const isOpen = schedule.openWeekdays.includes(w);
+          const times = schedule.weekdayTimes[String(w)] || [];
+          return (
+            <div key={w} className="rounded-xl border border-stone-200 p-2.5 space-y-2">
+              <button
+                type="button"
+                onClick={() => toggleWeekday(w)}
+                className={`w-8 h-8 rounded-full text-xs font-bold border transition-colors ${
+                  isOpen ? 'bg-stone-800 text-white border-stone-800' : 'bg-white text-stone-400 border-stone-300'
+                }`}
+              >
+                {label}
+              </button>
+              <div className="flex flex-wrap gap-1.5">
+                {times.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 text-[11px] bg-stone-100 text-stone-700 px-2 py-1 rounded-full"
+                  >
+                    {t}
+                    <button type="button" onClick={() => removeTime(w, t)}>
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <input
+                  value={timeInputs[w] || ''}
+                  onChange={(e) => setTimeInputs((prev) => ({ ...prev, [w]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addTime(w);
+                    }
+                  }}
+                  placeholder="예: 오전 7시반"
+                  className="flex-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => addTime(w)}
+                  className="rounded-lg border border-stone-300 px-2.5 text-xs font-semibold text-stone-600"
+                >
+                  추가
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-stone-600">특정 날짜 휴무 (명절, 임시휴무)</p>
+        <div className="flex flex-wrap gap-1.5">
+          {schedule.closedDates.map((d) => (
+            <span
+              key={d}
+              className="inline-flex items-center gap-1 text-[11px] bg-red-50 text-red-700 px-2 py-1 rounded-full border border-red-200"
+            >
+              {d}
+              <button type="button" onClick={() => removeClosedDate(d)}>
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-1.5">
+          <input
+            type="date"
+            value={dateInput}
+            onChange={(e) => setDateInput(e.target.value)}
+            className="flex-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs"
+          />
+          <button
+            type="button"
+            onClick={addClosedDate}
+            className="rounded-lg border border-stone-300 px-2.5 text-xs font-semibold text-stone-600"
+          >
+            추가
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AdminPartnersTab({ secret }: { secret: string }) {
   const [partners, setPartners] = useState<AdminPartner[]>([]);
@@ -170,6 +316,11 @@ export function AdminPartnersTab({ secret }: { secret: string }) {
             </div>
           )}
         </div>
+
+        <ScheduleEditor
+          schedule={form.schedule || EMPTY_SCHEDULE}
+          onChange={(schedule) => setForm((f) => ({ ...f, schedule }))}
+        />
 
         <div className="flex gap-2 pt-1">
           <button

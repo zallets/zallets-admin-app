@@ -24,6 +24,15 @@ async function adminRequest<T>(secret: string, path: string, init?: RequestInit)
   return data as T;
 }
 
+// 시설 예약 가능 요일/시간 + 특정 날짜 휴무. 파트너 데이터의 일부로 함께 저장된다.
+export interface AdminFacilitySchedule {
+  openWeekdays: number[]; // 0(일)~6(토), 비어있으면 "매일 영업"으로 취급
+  weekdayTimes: Record<string, string[]>; // 요일 번호(문자열 키) -> 그 요일 시간대 목록
+  closedDates: string[]; // "YYYY-MM-DD" 특정 날짜 휴무(명절/임시휴무)
+}
+
+export const EMPTY_SCHEDULE: AdminFacilitySchedule = { openWeekdays: [], weekdayTimes: {}, closedDates: [] };
+
 export interface AdminPartner {
   id: string;
   category: string;
@@ -34,6 +43,7 @@ export interface AdminPartner {
   instagram: string;
   website: string;
   tags: string[];
+  schedule: AdminFacilitySchedule;
 }
 
 export interface AdminNotice {
@@ -149,35 +159,6 @@ export function setApplicationStatus(secret: string, applicationId: string, veri
 export function listBookings(secret: string, month?: string) {
   const query = month ? `?month=${encodeURIComponent(month)}` : '';
   return adminRequest<{ month: string; bookings: AdminBooking[] }>(secret, `/api/admin/list-bookings${query}`);
-}
-
-// ---------- 시설 운영시간(예약 가능 시간대 + 휴무 요일) ----------
-
-export interface FacilityHoursEntry {
-  slots: string[];
-  closedWeekdays: number[]; // 0(일)~6(토)
-}
-export type FacilityHoursMap = Record<string, FacilityHoursEntry>;
-
-// 공개 엔드포인트라 관리자 비밀번호가 필요 없다(손님용 앱도 그대로 호출하는 API).
-export async function fetchFacilityHours(): Promise<FacilityHoursMap> {
-  const res = await fetch('/api/facility-hours');
-  if (!res.ok) throw new Error('운영시간을 불러오지 못했습니다.');
-  return res.json();
-}
-
-export function updateFacilityHours(
-  secret: string,
-  facilityId: string,
-  facilityName: string,
-  slots: string[],
-  closedWeekdays: number[]
-) {
-  return adminRequest<{ facilityId: string; slots: string[]; closedWeekdays: number[] }>(
-    secret,
-    '/api/admin/update-facility-hours',
-    { method: 'POST', body: JSON.stringify({ facilityId, facilityName, slots, closedWeekdays }) }
-  );
 }
 
 // ---------- 이미지 업로드 ----------
