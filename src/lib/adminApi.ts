@@ -151,6 +151,35 @@ export function listBookings(secret: string, month?: string) {
   return adminRequest<{ month: string; bookings: AdminBooking[] }>(secret, `/api/admin/list-bookings${query}`);
 }
 
+// ---------- 시설 운영시간(예약 가능 시간대 + 휴무 요일) ----------
+
+export interface FacilityHoursEntry {
+  slots: string[];
+  closedWeekdays: number[]; // 0(일)~6(토)
+}
+export type FacilityHoursMap = Record<string, FacilityHoursEntry>;
+
+// 공개 엔드포인트라 관리자 비밀번호가 필요 없다(손님용 앱도 그대로 호출하는 API).
+export async function fetchFacilityHours(): Promise<FacilityHoursMap> {
+  const res = await fetch('/api/facility-hours');
+  if (!res.ok) throw new Error('운영시간을 불러오지 못했습니다.');
+  return res.json();
+}
+
+export function updateFacilityHours(
+  secret: string,
+  facilityId: string,
+  facilityName: string,
+  slots: string[],
+  closedWeekdays: number[]
+) {
+  return adminRequest<{ facilityId: string; slots: string[]; closedWeekdays: number[] }>(
+    secret,
+    '/api/admin/update-facility-hours',
+    { method: 'POST', body: JSON.stringify({ facilityId, facilityName, slots, closedWeekdays }) }
+  );
+}
+
 // ---------- 이미지 업로드 ----------
 
 function readFileAsResizedJpegBase64(file: File, maxSize = 1600): Promise<string> {
