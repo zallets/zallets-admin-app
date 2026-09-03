@@ -108,6 +108,7 @@ function ScheduleEditor({
                       addTime(w);
                     }
                   }}
+                  onBlur={() => addTime(w)}
                   placeholder="예: 오전 7시반"
                   className="flex-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs"
                 />
